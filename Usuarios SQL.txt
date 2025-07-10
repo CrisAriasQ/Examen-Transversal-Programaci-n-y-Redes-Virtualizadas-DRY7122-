@@ -1,0 +1,55 @@
+from flask import Flask, request, jsonify
+import sqlite3
+import bcrypt
+
+
+conn = sqlite3.connect('usuarios.db', check_same_thread=False)
+cursor = conn.cursor()
+
+cursor.execute('''
+    CREATE TABLE IF NOT EXISTS users (
+        usuario TEXT PRIMARY KEY,
+        password_hash TEXT
+    )
+''')
+conn.commit()
+
+
+app = Flask(__name__)
+
+
+@app.route('/registro', methods=['POST'])
+def registro():
+    data = request.json
+    usuario = data.get('usuario')
+    password = data.get('password')
+
+    if not usuario or not password:
+        return jsonify({'error': 'Faltan datos'}), 400
+
+    password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+
+    try:
+        cursor.execute('INSERT INTO users (usuario, password_hash) VALUES (?, ?)', (usuario, password_hash))
+        conn.commit()
+        return jsonify({'mensaje': 'Usuario registrado correctamente'}), 201
+    except sqlite3.IntegrityError:
+        return jsonify({'error': 'El usuario ya existe'}), 409
+
+
+@app.route('/login', methods=['POST'])
+def login():
+    data = request.json
+    usuario = data.get('usuario')
+    password = data.get('password')
+
+    cursor.execute('SELECT password_hash FROM users WHERE usuario = ?', (usuario,))
+    resultado = cursor.fetchone()
+
+    if resultado and bcrypt.checkpw(password.encode('utf-8'), resultado[0]):
+        return jsonify({'mensaje': 'Acceso permitido'}), 200
+    else:
+        return jsonify({'mensaje': 'Acceso denegado'}), 401
+
+if __name__ == '__main__':
+    app.run(port=7500, debug=True)

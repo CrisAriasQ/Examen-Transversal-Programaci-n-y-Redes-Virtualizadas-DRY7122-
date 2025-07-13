@@ -1,0 +1,25 @@
+---
+- name: DIRECCIONAMIENTO IPV6
+  hosts: CSR1kv
+  gather_facts: false
+  connection: local
+ 
+  tasks:
+   - name: INGRESAR DIRECCIONAMIENTO IPV6
+     ios_command:
+       parents: "interface Loopback44"
+       lineas:
+         - description IPV6 ADDRESS
+         - ipv6 address 3001:ABCD:ABCD:4::4/128
+         - ipv6 address FE80::1 link-local
+  
+   - name: SHOW IPV6 INTERFACE BRIEF 
+     ios_command:
+       commands:
+         - show ipv6 interface brief 
+     register: output
+ 
+   - name: SAVE OUTPUT ./ios_configurations/
+     copy:
+       content: "{{ output.stdout[0] }}"
+       dest: "ios_configurations/ipv6_output_{{ inventory_hostname }}.txt"
